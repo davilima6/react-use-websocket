@@ -1,11 +1,7 @@
 import { MutableRefObject } from 'react';
+import { DEFAULT_RECONNECT_LIMIT, ReadyState, isEventSourceSupported } from './constants';
+import { getReconnectInterval } from './get-reconnect-interval';
 import { setUpSocketIOPing } from './socket-io';
-import {
-  DEFAULT_RECONNECT_LIMIT,
-  DEFAULT_RECONNECT_INTERVAL_MS,
-  ReadyState,
-  isEventSourceSupported,
-} from './constants';
 import { Options, SendMessage, WebSocketLike } from './types';
 import { assertIsWebSocket } from './util';
 
@@ -54,16 +50,17 @@ const bindCloseHandler = (
   assertIsWebSocket(webSocketInstance);
   let reconnectTimeout: number;
 
-  webSocketInstance.onclose = (event: WebSocketEventMap['close']) => {
+  webSocketInstance.onclose = async (event: WebSocketEventMap['close']) => {
     optionsRef.current.onClose && optionsRef.current.onClose(event);
     setReadyState(ReadyState.CLOSED);
     if (optionsRef.current.shouldReconnect && optionsRef.current.shouldReconnect(event)) {
       const reconnectAttempts = optionsRef.current.reconnectAttempts ?? DEFAULT_RECONNECT_LIMIT;
+      const reconnectInterval = await getReconnectInterval(optionsRef);
       if (reconnectCount.current < reconnectAttempts) {
         reconnectTimeout = window.setTimeout(() => {
           reconnectCount.current++;
           reconnect();
-        }, optionsRef.current.reconnectInterval ?? DEFAULT_RECONNECT_INTERVAL_MS);
+        }, reconnectInterval);
       } else {
         optionsRef.current.onReconnectStop && optionsRef.current.onReconnectStop(reconnectAttempts);
         console.warn(`Max reconnect attempts of ${reconnectAttempts} exceeded`);
@@ -83,7 +80,7 @@ const bindErrorHandler = (
 ) => {
   let reconnectTimeout: number;
 
-  webSocketInstance.onerror = (error: WebSocketEventMap['error']) => {
+  webSocketInstance.onerror = async (error: WebSocketEventMap['error']) => {
     optionsRef.current.onError && optionsRef.current.onError(error);
     if (isEventSourceSupported && webSocketInstance instanceof EventSource) {
       optionsRef.current.onClose && optionsRef.current.onClose({
@@ -96,13 +93,14 @@ const bindErrorHandler = (
       setReadyState(ReadyState.CLOSED);
       webSocketInstance.close();
     }
-    
+
     if (optionsRef.current.retryOnError) {
       if (reconnectCount.current < (optionsRef.current.reconnectAttempts ?? DEFAULT_RECONNECT_LIMIT)) {
+        const reconnectInterval = await getReconnectInterval(optionsRef);
         reconnectTimeout = window.setTimeout(() => {
           reconnectCount.current++;
           reconnect();
-        }, optionsRef.current.reconnectInterval ?? DEFAULT_RECONNECT_INTERVAL_MS);
+        }, reconnectInterval);
       } else {
         optionsRef.current.onReconnectStop && optionsRef.current.onReconnectStop(optionsRef.current.reconnectAttempts as number);
         console.warn(`Max reconnect attempts of ${optionsRef.current.reconnectAttempts} exceeded`);
