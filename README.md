@@ -133,7 +133,7 @@ type UseWebSocket = (
     onError?: (event: WebSocketEventMap['error']) => void;
     onReconnectStop?: (numAttempts: number) => void;
     shouldReconnect?: (event: WebSocketEventMap['close']) => boolean;
-    reconnectInterval?: number;
+    reconnectInterval?: number | () => Promise<number>;
     reconnectAttempts?: number;
     filter?: (message: WebSocketEventMap['message']) => boolean;
     retryOnError?: boolean;
@@ -306,7 +306,7 @@ useEffect(() => {
 interface Options {
   share?: boolean;
   shouldReconnect?: (event: WebSocketEventMap['close']) => boolean;
-  reconnectInterval?: number;
+  reconnectInterval?: number |  () => Promise<number>;
   reconnectAttempts?: number;
   filter?: (message: WebSocketEventMap['message']) => boolean;
   retryOnError?: boolean;

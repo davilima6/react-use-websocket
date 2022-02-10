@@ -19,7 +19,7 @@ beforeEach(() => {
   optionRef = { current: {} };
 });
 
-test('If passed a funtion, it will return a promise that resolves to the return value of the function, after being parsed', async (done) => {
+test('If passed a function, it will return a promise that resolves to the return value of the function, after being parsed', async (done) => {
   const wsUrl = await getUrl(getUrlAsync, optionRef);
   expect(wsUrl).toEqual(URL);
   done();
